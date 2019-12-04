@@ -24,7 +24,6 @@ class Onbroid(discord.Client):
             await message.channel.send('fuck you: message_ID must be int')
             return False
         payload = await self.resolve_message(msg_id)
-        payload = payload.content
         channels = message.channel_mentions or [message.channel]
         channels = set(channels) #重複を削除
 
@@ -34,7 +33,11 @@ class Onbroid(discord.Client):
 
         for channel in channels:
             try:
-                await channel.send(payload)
+                if payload.embeds:
+                    for embed in payload.embeds:
+                        await channel.send(payload.content, embed=embed)
+                else:
+                    await channel.send(payload.content)
             except Exception as e:
                 print(f'send message faild: {e}')
                 return
