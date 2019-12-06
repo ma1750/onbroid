@@ -33,11 +33,11 @@ class Onbroid(discord.Client):
 
         for channel in channels:
             try:
-                if payload.embeds:
-                    for embed in payload.embeds:
-                        await channel.send(payload.content, embed=embed)
-                else:
-                    await channel.send(payload.content)
+                embed = await self.make_embed(payload)
+                if embed:
+                    payload.embeds.append(embed)
+                for embed in payload.embeds:
+                    await channel.send(embed=embed)
             except Exception as e:
                 print(f'send message faild: {e}')
                 return
@@ -57,6 +57,15 @@ class Onbroid(discord.Client):
                 print(f'some error occered deleting message: {e}')
 
     async def resolve_message(self, msg_id):
+        '''
+        Parameters
+        ----------
+        msg_id: int -- The message ID to look for.
+
+        Returns
+        -------
+        message: discord.Message
+        '''
         for channel in self.get_all_channels():
             if isinstance(channel, discord.TextChannel):
                 try:
@@ -67,6 +76,32 @@ class Onbroid(discord.Client):
                     return None
                 except (discord.NotFound, discord.HTTPException):
                     continue
+
+    async def make_embed(self, message:discord.Message):
+        '''
+        Parameters
+        ----------
+        message: discord.Message
+
+        Returns
+        -------
+        embed: discord.embed
+        '''
+        content = message.content
+        if not content:
+            return None
+        user = message.author
+        timestamp = message.created_at
+
+        embed = discord.Embed(
+            title=content,
+            color=0x2ee21f,
+            timestamp=timestamp
+        )
+
+        embed.set_author(name=user.name, url=user.avatar_url, icon_url=user.avatar_url)
+
+        return embed
 
 
     async def on_message(self, message):
