@@ -99,7 +99,7 @@ class Onbroid(discord.Client):
             timestamp=timestamp
         )
 
-        embed.set_author(name=user.name, url=user.avatar_url, icon_url=user.avatar_url)
+        embed.set_author(name=user.name, icon_url=user.avatar_url_as(static_format="png"))
 
         return embed
 
