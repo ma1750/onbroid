@@ -56,6 +56,22 @@ class Onbroid(discord.Client):
             except Exception as e:
                 print(f'some error occered deleting message: {e}')
 
+    async def fuck(self, message, msg_id, *_):
+        '''
+        対象のメッセージに `f,u,c,k,middle_finger` のリアクションを付ける
+        Usage: fuck message_ID
+        '''
+        try:
+            msg_id = int(msg_id)
+        except ValueError:
+            await message.channel.send('fuck you: message_ID must be int')
+            return
+        target = await self.resolve_message(msg_id)
+        fuck_emote = ['\U0001F1EB', '\U0001F1FA', '\U0001F1E8', '\U0001F1F0', '\U0001F595']
+        for emote in fuck_emote:
+            self.loop.create_task(target.add_reaction(emote))
+        await message.delete()
+
     async def resolve_message(self, msg_id):
         '''
         Parameters
@@ -70,7 +86,6 @@ class Onbroid(discord.Client):
             if isinstance(channel, discord.TextChannel):
                 try:
                     return await channel.fetch_message(msg_id)
-
                 except discord.Forbidden as e:
                     print(f'permission error: {e}')
                     return None
@@ -122,3 +137,5 @@ class Onbroid(discord.Client):
             await self.cp(message, *args)
         elif command == 'mv':
             await self.mv(message, *args)
+        elif command == 'fuck':
+            await self.fuck(message, *args)
