@@ -72,6 +72,10 @@ class Onbroid(discord.Client):
             self.loop.create_task(target.add_reaction(emote))
         await message.delete()
 
+    async def on_reaction_add(self, reaction, _):
+        if str(reaction.emoji) == '\U0001F4CC':
+            await reaction.message.pin()
+
     async def resolve_message(self, msg_id):
         '''
         Parameters
