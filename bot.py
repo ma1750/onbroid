@@ -82,6 +82,10 @@ class Onbroid(discord.Client):
         -------
         message: discord.Message
         '''
+        for message in self.cached_messages:
+            if message.id == msg_id:
+                return message
+
         for channel in self.get_all_channels():
             if isinstance(channel, discord.TextChannel):
                 try:
