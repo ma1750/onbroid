@@ -67,6 +67,8 @@ class Onbroid(discord.Client):
             await message.channel.send('fuck you: message_ID must be int')
             return
         target = await self.resolve_message(msg_id)
+        if not target:
+            return
         fuck_emote = ['\U0001F1EB', '\U0001F1FA', '\U0001F1E8', '\U0001F1F0', '\U0001F595']
         for emote in fuck_emote:
             self.loop.create_task(target.add_reaction(emote))
