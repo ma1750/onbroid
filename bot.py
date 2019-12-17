@@ -5,6 +5,7 @@ from config import Config
 class Onbroid(discord.Client):
     def __init__(self, config):
         self.config = config
+        self.message_cache = {}
         super().__init__()
 
     async def start(self):
@@ -23,7 +24,7 @@ class Onbroid(discord.Client):
         except ValueError:
             await message.channel.send('fuck you: message_ID must be int')
             return False
-        payload = await self.resolve_message(msg_id)
+        payload = await self.resolve_message(message.channel, msg_id)
         channels = message.channel_mentions or [message.channel]
         channels = set(channels) #重複を削除
 
@@ -35,7 +36,7 @@ class Onbroid(discord.Client):
             try:
                 embed = await self.make_embed(payload)
                 if embed:
-                    payload.embeds.append(embed)
+                    payload.embeds.insert(0,embed)
                 for embed in payload.embeds:
                     await channel.send(embed=embed)
             except Exception as e:
@@ -51,8 +52,9 @@ class Onbroid(discord.Client):
         '''
         if await self.cp(message=message, msg_id=msg_id):
             try:
-                target = await self.resolve_message(msg_id)
-                await target.delete()
+                target = await self.resolve_message(message.channel, msg_id)
+                if target:
+                    await target.delete()
             except Exception as e:
                 print(f'some error occered deleting message: {e}')
 
@@ -66,7 +68,7 @@ class Onbroid(discord.Client):
         except ValueError:
             await message.channel.send('fuck you: message_ID must be int')
             return
-        target = await self.resolve_message(msg_id)
+        target = await self.resolve_message(message.channel, msg_id)
         if not target:
             return
         fuck_emote = ['\U0001F1EB', '\U0001F1FA', '\U0001F1E8', '\U0001F1F0', '\U0001F595']
@@ -78,29 +80,39 @@ class Onbroid(discord.Client):
         if str(reaction.emoji) == '\U0001F4CC':
             await reaction.message.pin()
 
-    async def resolve_message(self, msg_id):
+    async def resolve_message(self, channel, msg_id):
         '''
         Parameters
         ----------
+        channel: discord.TextChannel -- search for message in this channel
         msg_id: int -- The message ID to look for.
 
         Returns
         -------
         message: discord.Message
         '''
-        for message in self.cached_messages:
-            if message.id == msg_id:
-                return message
+        return self.message_cache.get(msg_id) or await self._search_message(channel, msg_id)
 
-        for channel in self.get_all_channels():
-            if isinstance(channel, discord.TextChannel):
-                try:
-                    return await channel.fetch_message(msg_id)
-                except discord.Forbidden as e:
-                    print(f'permission error: {e}')
-                    return None
-                except (discord.NotFound, discord.HTTPException):
-                    continue
+    async def _search_message(self, channel, msg_id):
+        '''
+        search un_cached message
+
+        Parameters
+        ----------
+        channel: discord.TextChannel -- search for message in this channel
+        msg_id: int -- The message ID to look for.
+
+        Returns
+        -------
+        message: discord.Message
+        '''
+        try:
+            return await channel.fetch_message(msg_id)
+        except discord.Forbidden as e:
+            print(f'permission error: {e}')
+            return None
+        except (discord.NotFound, discord.HTTPException):
+            return None
 
     async def make_embed(self, message:discord.Message):
         '''
@@ -133,6 +145,8 @@ class Onbroid(discord.Client):
         if message.author.bot:
             return
 
+        self.message_cache[message.id] = message
+
         if not message.content[:len(self.config.prefix)].startswith(self.config.prefix):
             return
 
@@ -149,3 +163,7 @@ class Onbroid(discord.Client):
             await self.mv(message, *args)
         elif command == 'fuck':
             await self.fuck(message, *args)
+
+    async def on_message_delete(self, message):
+        if message.id in self.message_cache:
+            del self.message_cache[message.id]
