@@ -14,23 +14,24 @@ class Onbroid(discord.Client):
     async def on_ready(self):
         print('ready')
 
-    async def cp(self, message, msg_id, *_):
+    async def cp(self, message, msg_idable, *_):
         '''
         対象のメッセージを任意のチャンネルに投稿する
-        Usage: cp message_ID dest_channel1 (dest_channel2 ...)
+        Usage: cp message_(ID|Link) dest_channel1 (dest_channel2 ...)
         '''
-        try:
-            msg_id = int(msg_id)
-        except ValueError:
-            await message.channel.send('fuck you: message_ID must be int')
+        msg_id = self.get_msgid(msg_idable)
+        if not msg_id:
+            await message.channel.send('invalid mesage ID or URL')
             return False
         payload = await self.resolve_message(message.channel, msg_id)
+        if not payload.id in self.message_cache:
+            self.message_cache[payload.id] = payload
         channels = message.channel_mentions or [message.channel]
         channels = set(channels) #重複を削除
 
         if not payload:
             print(f'message resolve failed')
-            return
+            return False
 
         for channel in channels:
             try:
@@ -41,18 +42,18 @@ class Onbroid(discord.Client):
                     await channel.send(embed=embed)
             except Exception as e:
                 print(f'send message faild: {e}')
-                return
+                return False
         await message.delete()
         return True
 
-    async def mv(self, message, msg_id, *_):
+    async def mv(self, message, msg_idable, *_):
         '''
         対象のメッセージを削除して任意のチャンネルに投稿する
-        Usage: mv message_ID dest_channel1 (dest_channel2 ...)
+        Usage: mv message_(ID|Link) dest_channel1 (dest_channel2 ...)
         '''
-        if await self.cp(message=message, msg_id=msg_id):
+        if await self.cp(message=message, msg_idable=msg_idable):
             try:
-                target = await self.resolve_message(message.channel, msg_id)
+                target = await self.resolve_message(message.channel, self.get_msgid(msg_idable))
                 if target:
                     await target.delete()
             except Exception as e:
@@ -61,12 +62,11 @@ class Onbroid(discord.Client):
     async def fuck(self, message, msg_id, *_):
         '''
         対象のメッセージに `f,u,c,k,middle_finger` のリアクションを付ける
-        Usage: fuck message_ID
+        Usage: fuck message_(ID|Link)
         '''
-        try:
-            msg_id = int(msg_id)
-        except ValueError:
-            await message.channel.send('fuck you: message_ID must be int')
+        msg_id = self.get_msgid(msg_id)
+        if not msg_id:
+            await message.channel.send('invalid mesage ID or URL')
             return
         target = await self.resolve_message(message.channel, msg_id)
         if not target:
@@ -79,6 +79,28 @@ class Onbroid(discord.Client):
     async def on_reaction_add(self, reaction, _):
         if str(reaction.emoji) == '\U0001F4CC':
             await reaction.message.pin()
+
+    def get_msgid(self, msg_idable):
+        '''
+        message ID もしくは message Linkからdiscord.Message.idを返す
+
+        Parameters
+        ----------
+        msg_idable: str
+
+        Returns
+        -------
+        id: int
+        '''
+        try:
+            msg_id = int(msg_idable)
+        except ValueError:
+            if msg_idable.startswith('http'):
+                msg_idable = msg_idable.split('/')[-1]
+                return self.get_msgid(msg_idable)
+            else:
+                return None
+        return msg_id
 
     async def resolve_message(self, channel, msg_id):
         '''
@@ -111,7 +133,8 @@ class Onbroid(discord.Client):
         except discord.Forbidden as e:
             print(f'permission error: {e}')
             return None
-        except (discord.NotFound, discord.HTTPException):
+        except (discord.NotFound, discord.HTTPException) as e:
+            print(e)
             return None
 
     async def make_embed(self, message:discord.Message):
@@ -142,10 +165,10 @@ class Onbroid(discord.Client):
 
 
     async def on_message(self, message):
+        self.message_cache[message.id] = message
+
         if message.author.bot:
             return
-
-        self.message_cache[message.id] = message
 
         if not message.content[:len(self.config.prefix)].startswith(self.config.prefix):
             return
