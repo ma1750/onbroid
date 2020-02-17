@@ -175,6 +175,7 @@ class Onbroid(discord.Client):
 
         message_content = message.content[len(self.config.prefix):].strip()
         command, *args = message_content.split(' ')
+        command = command.lower()
 
         if not args:
             print(f'fuck you: {message_content}')
